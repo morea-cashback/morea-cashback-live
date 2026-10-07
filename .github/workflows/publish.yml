@@ -1,0 +1,51 @@
+name: publish-data
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: publish-data
+jobs:
+  publish:
+    if: startsWith(github.event.comment.body, 'DONE') && github.event.comment.user.login == 'morea-cashback'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble data.json from issue comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          gh api "repos/$REPO/issues/$N/comments" --paginate --jq '.[] | {u: .user.login, b: .body}' > comments.jsonl
+          python3 - <<'PY'
+          import json, re
+          parts, total = {}, 0
+          for line in open('comments.jsonl'):
+              c = json.loads(line)
+              if c['u'] != 'morea-cashback':
+                  continue
+              m = re.match(r'PART (\d+)/(\d+)\s*\[\[\[(.*)\]\]\]\s*$', c['b'], re.S)
+              if m:
+                  parts[int(m.group(1))] = m.group(3)
+                  total = int(m.group(2))
+          assert total > 0 and sorted(parts) == list(range(1, total + 1)), 'missing parts'
+          text = ''.join(parts[i] for i in range(1, total + 1))
+          d = json.loads(text)
+          assert 'stores' in d and len(d['stores']) > 0, 'no stores'
+          open('data.json', 'w', encoding='utf-8').write(text)
+          print('stores', len(d['stores']))
+          PY
+          rm comments.jsonl
+      - name: Commit and push
+        run: |
+          git config user.name "morea-bot"
+          git config user.email "morea-bot@users.noreply.github.com"
+          git add data.json
+          git diff --cached --quiet || (git commit -m "Dashboard data update" && git push)
+      - name: Close issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "${{ github.event.issue.number }}" --repo "${{ github.repository }}"
