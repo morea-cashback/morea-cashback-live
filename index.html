@@ -52,6 +52,7 @@ tr.tot td{font-weight:700;background:var(--lb)}
 .lg i{display:inline-block;width:10px;height:10px;margin-right:4px;border-radius:2px}
 .bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
 .bar input{max-width:300px}
+#dl{margin-left:auto;background:#217346}
 .note{font-size:12px;color:var(--mut);padding:8px 16px 20px;text-align:center}
 @media(max-width:700px){
 .grid{grid-template-columns:1fr}
@@ -76,7 +77,7 @@ table.rt td:before{content:attr(data-l);color:var(--mut);text-align:left;flex-sh
 <div class='grid'><div class='card'><h3>Achievement by DT</h3><div id='tdt'></div></div><div class='card'><h3>Achievement by zone</h3><div id='tz'></div></div></div>
 </main>
 <main id='list' hidden>
-<div class='bar'><input id='q' placeholder='Search store code or name'><b id='cnt'></b></div>
+<div class='bar'><input id='q' placeholder='Search store code or name'><b id='cnt'></b><button id='dl' type='button'>&#11015; Download CSV</button></div>
 <div class='card'><div id='lt'></div></div>
 </main>
 <div class='note' id='foot'></div>
@@ -143,12 +144,19 @@ function pr(x){return x.t<=0?2:x.g>0?0:1}
 function renderList(rows){LAST=rows;var q=$('q').value.trim().toLowerCase(),ty=$('ft').value;
 var r=rows.filter(function(x){return (ty==='All'||x.ty===ty)&&(!q||(x.c+' '+x.n).toLowerCase().indexOf(q)>=0)});
 r.sort(function(a,b){if(sortK==='prio'){return pr(a)-pr(b)||a.g-b.g||(a.c<b.c?-1:1)}var A=a[sortK],B=b[sortK];return (A<B?-1:A>B?1:0)*sortD});
-$('cnt').textContent=r.length+' stores listed';
+$('cnt').textContent=r.length+' stores listed';LV=r;
 var h='<table id=tbl class=rt><thead><tr>'+COLS.map(function(c){return '<th data-k='+c[0]+'>'+c[1]+(sortK===c[0]?(sortD>0?' &#9650;':' &#9660;'):'')+'</th>'}).join('')+'</tr></thead><tbody>';
 r.forEach(function(x){var v=[esc(x.c),esc(x.n),esc(x.ty),esc(x.dt),esc(x.z),nf(x.t),nf(x.m),pc(x.a),nf(x.g),'<span class=seg style='+Q+'background:'+SC[x.sg]+Q+'>'+x.sg+'</span>',ds(x.l),pc(x.r),nf2(x.cb)];
 h+='<tr>'+v.map(function(c,i){return '<td data-l='+Q+COLS[i][1]+Q+(i===7?' class='+ac(x.a):'')+'>'+c+'</td>'}).join('')+'</tr>'});
 $('lt').innerHTML=h+'</tbody></table>'}
 $('lt').onclick=function(e){var k=e.target.getAttribute('data-k');if(!k)return;if(sortK===k)sortD=-sortD;else{sortK=k;sortD=1}renderList(LAST)};
+var LV=[];
+function csvc(v){v=String(v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+$('dl').onclick=function(){
+var head=COLS.map(function(c){return csvc(c[1])}).join(',');
+var lines=LV.map(function(x){return ['="'+x.c+'"'].concat([x.n,x.ty,x.dt,x.z,x.t,x.m.toFixed(2),(x.a*100).toFixed(1)+'%',x.g.toFixed(2),x.sg,ds(x.l),(x.r*100).toFixed(1)+'%',x.cb.toFixed(2)].map(csvc)).join(',')});
+var blob=new Blob(['﻿'+head+'\r\n'+lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Store_List_'+mname(D.months[mi]).replace(' ','_')+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href)},1000)};
 $('q').oninput=function(){renderList(LAST)};
 ['fm','fd','fz','fs'].forEach(function(i){$(i).onchange=refresh});
 $('ft').onchange=function(){renderList(LAST)};
