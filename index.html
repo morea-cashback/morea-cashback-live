@@ -31,6 +31,10 @@ main{padding:14px 16px;max-width:1400px;margin:0 auto}
 .kpi span{display:block;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
 .kpi b{font-size:24px;color:var(--navy)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px;margin-bottom:14px}
+.grid.one{grid-template-columns:minmax(0,1fr)}
+.grid.types{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+#tt td:first-child{white-space:nowrap}
+@media(max-width:1340px){.grid.types{grid-template-columns:minmax(0,1fr)}}
 .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow-x:auto}
 .card h3{font-size:14px;color:var(--navy);margin-bottom:10px}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -55,7 +59,7 @@ tr.tot td{font-weight:700;background:var(--lb)}
 #dl{margin-left:auto;background:#217346}
 .note{font-size:12px;color:var(--mut);padding:8px 16px 20px;text-align:center}
 @media(max-width:700px){
-.grid{grid-template-columns:1fr}
+.grid{grid-template-columns:minmax(0,1fr)}
 header h1{font-size:15px}
 .kpi b{font-size:20px}
 .tab{flex:1;padding:10px 6px}
@@ -73,8 +77,8 @@ table.rt td:before{content:attr(data-l);color:var(--mut);text-align:left;flex-sh
 <section class='filters'><label>Month<select id='fm'></select></label><label>DT<select id='fd'></select></label><label>Zone (Code – Name)<select id='fz'></select></label><label>Store (Code – Name)<select id='fs'></select></label><label id='ftl' hidden>Shop type<select id='ft'></select></label></section>
 <main id='dash'>
 <div class='kpis' id='kpis'></div>
-<div class='grid'><div class='card'><h3>Achievement by shop type</h3><div id='tt'></div></div><div class='card'><h3>Target vs MTD purchase by shop type</h3><div id='bars'></div></div></div>
-<div class='grid'><div class='card'><h3>Achievement by DT</h3><div id='tdt'></div></div><div class='card'><h3>Achievement by zone</h3><div id='tz'></div></div></div>
+<div class='grid types'><div class='card'><h3>Achievement by shop type</h3><div id='tt'></div></div><div class='card'><h3>Target vs MTD purchase by shop type</h3><div id='bars'></div></div></div>
+<div class='grid one'><div class='card'><h3>Achievement by DT</h3><div id='tdt'></div></div><div class='card'><h3>Achievement by zone</h3><div id='tz'></div></div></div>
 </main>
 <main id='list' hidden>
 <div class='bar'><input id='q' placeholder='Search store code or name'><b id='cnt'></b><button id='dl' type='button'>&#11015; Download CSV</button></div>
@@ -108,14 +112,16 @@ function scope(){return S.filter(function(s){return U[2]==='Grand Total'||(U[2]=
 function opt(s,v,t){var o=document.createElement('option');o.value=v;o.textContent=t;s.appendChild(o)}
 function fill(id,vals,all){var s=$(id),c=s.value;s.innerHTML='';opt(s,'All',all);vals.forEach(function(v){opt(s,v[0],v[1])});s.value=vals.some(function(v){return v[0]===c})?c:'All'}
 function uniq(a){return a.filter(function(v,i){return a.indexOf(v)===i}).sort()}
+var TYPES=['BA Wholesale','Wholesale','Large Store','Retailer'];
+function types(rows){var u=uniq(rows.map(function(x){return x.ty}));return TYPES.filter(function(t){return u.indexOf(t)>=0}).concat(u.filter(function(t){return TYPES.indexOf(t)<0}))}
 function start(){$('login').hidden=true;$('app').hidden=false;
 $('who').textContent=U[1]+' | '+U[2]+(U[2]==='DT'?' ('+U[3]+')':U[2]==='Zone'?' ('+U[4]+')':'');
 fillMonths();
-var ft=$('ft');opt(ft,'All','All shop types');['BAWS','WS','Large','Unclassified'].forEach(function(t){opt(ft,t,t)});
+
 setSub();
 $('foot').textContent='Targets are the monthly targets from the Cash Back sheet applied to the selected month. MTD cashback = MTD purchase x each store cashback rate (Cash Back column S), earned only when the store reaches 100% of its target. Purchases are from the Admin Report (selling price after promotion). This page refreshes automatically every 5 minutes.';
 refresh()}
-function R(x){var m=x[7][mi]||0,t=x[5]||0;return {c:x[0],n:x[1],ty:x[2],dt:x[3],z:x[4],t:t,m:m,a:t>0?m/t:0,g:Math.max(t-m,0),sg:seg(t,m),l:x[6],r:x[8]||0,cb:(t>0&&m>=t)?m*(x[8]||0):0}}
+function R(x){var m=x[7][mi]||0,t=x[5]||0;return {c:x[0],n:x[1],ty:String(x[2]||'').trim()||'Unclassified',dt:x[3],z:x[4],t:t,m:m,a:t>0?m/t:0,g:Math.max(t-m,0),sg:seg(t,m),l:x[6],r:x[8]||0,cb:(t>0&&m>=t)?m*(x[8]||0):0}}
 function sum(r){var o={n:r.length,t:0,m:0,g:0,k:0,cb:0};r.forEach(function(x){o.t+=x.t;o.m+=x.m;o.g+=x.g;o.cb+=x.cb;if(x.t>0&&x.a>=1)o.k++});o.a=o.t>0?o.m/o.t:0;return o}
 function grp(rows,key,order){var m={};rows.forEach(function(x){(m[x[key]]=m[x[key]]||[]).push(x)});var ks=order||Object.keys(m).sort();return ks.filter(function(k){return m[k]}).map(function(k){return [k,sum(m[k])]})}
 function tr(n,o,c){return '<tr'+(c?' class='+c:'')+'><td>'+esc(n)+'</td><td>'+nf(o.t)+'</td><td>'+nf(o.m)+'</td><td>'+o.n+'</td><td class='+ac(o.a)+'>'+pc(o.a)+'</td><td>'+nf(o.g)+'</td><td>'+o.k+'</td><td>'+nf2(o.cb)+'</td></tr>'}
@@ -128,10 +134,10 @@ fill('fz',uniq(s1.map(function(x){return x[4]})).map(function(v){return [v,v]}),
 var z=$('fz').value,s2=s1.filter(function(x){return z==='All'||x[4]===z});
 fill('fs',s2.slice().sort(function(a,b){return a[0]<b[0]?-1:1}).map(function(x){return [x[0],x[0]+' - '+x[1]]}),'All stores');
 var st=$('fs').value,rows=s2.filter(function(x){return st==='All'||x[0]===st}).map(R);
-var rs=sc.map(R),r1=s1.map(R);
+fill('ft',types(sc.map(R)).map(function(v){return [v,v]}),'All shop types');
 var t=sum(rows);
 $('kpis').innerHTML=[['Outlets',nf(t.n)],['Monthly target',nf(t.t)],['MTD purchase',nf(t.m)],['Achievement',pc(t.a)],['Shortfall to 100%',nf(t.g)],['Outlets at 100%+',t.k],['MTD cashback',nf2(t.cb)]].map(function(k){return '<div class=kpi><span>'+k[0]+'</span><b>'+k[1]+'</b></div>'}).join('');
-var gs=grp(rows,'ty',['BAWS','WS','Large','Unclassified']);
+var gs=grp(rows,'ty',types(rows));
 $('tt').innerHTML=gt('Shop Type',gs,t);
 var mx=1;gs.forEach(function(p){mx=Math.max(mx,p[1].t,p[1].m)});
 $('bars').innerHTML='<div class=lg><span><i style='+Q+'background:#4472c4'+Q+'></i>Monthly target</span><span><i style='+Q+'background:#ed7d31'+Q+'></i>MTD purchase</span></div><div class=bars>'+gs.map(function(p){return '<div class=br><span>'+esc(p[0])+'</span><div><div class=bt style='+Q+'width:'+(p[1].t/mx*100)+'%'+Q+'></div><div class=bm style='+Q+'width:'+(p[1].m/mx*100)+'%'+Q+'></div></div></div>'}).join('')+'</div>';
